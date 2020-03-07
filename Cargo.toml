@@ -1,11 +1,11 @@
 [package]
 name = "dakv_logger"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["da2018 <da2018t@gmail.com>"]
 edition = "2018"
 description = "Logger for dakv"
 license = "MIT"
-homepage = "https://github.com/dakv/dakv_logger"
+homepage = "https://github.com/dakv/logger"
 keywords = ["logger", "log"]
 categories = ["logger", "log"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
