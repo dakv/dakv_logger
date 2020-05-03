@@ -26,10 +26,50 @@ pub mod prelude {
 }
 
 
+#[allow(unknown_lints)]
+#[allow(inline_always)]
+#[inline(always)]
+pub fn __slog_static_max_level() -> FilterLevel {
+    if !cfg!(debug_assertions) {
+        if cfg!(feature = "release_max_level_off") {
+            return FilterLevel::Off;
+        } else if cfg!(feature = "release_max_level_error") {
+            return FilterLevel::Error;
+        } else if cfg!(feature = "release_max_level_warn") {
+            return FilterLevel::Warning;
+        } else if cfg!(feature = "release_max_level_info") {
+            return FilterLevel::Info;
+        } else if cfg!(feature = "release_max_level_debug") {
+            return FilterLevel::Debug;
+        } else if cfg!(feature = "release_max_level_trace") {
+            return FilterLevel::Trace;
+        }
+    }
+    if cfg!(feature = "max_level_off") {
+        FilterLevel::Off
+    } else if cfg!(feature = "max_level_error") {
+        FilterLevel::Error
+    } else if cfg!(feature = "max_level_warn") {
+        FilterLevel::Warning
+    } else if cfg!(feature = "max_level_info") {
+        FilterLevel::Info
+    } else if cfg!(feature = "max_level_debug") {
+        FilterLevel::Debug
+    } else if cfg!(feature = "max_level_trace") {
+        FilterLevel::Trace
+    } else {
+        if !cfg!(debug_assertions) {
+            FilterLevel::Info
+        } else {
+            FilterLevel::Debug
+        }
+    }
+}
+
 pub fn set_logger_level(is_async: bool, chan_size: Option<usize>) -> slog_scope::GlobalLoggerGuard {
     let p = PlainDecorator::new(std::io::stdout());
     let format = DaKVFormatter::new(p).fuse();
-    let env_drain = get_env_log(format, FilterLevel::Info);
+    let env_drain = get_env_log(format, __slog_static_max_level());
     let logger = if is_async {
         let l = gen_async_log(env_drain, chan_size).fuse();
         Logger::root(l.fuse(), o!())
