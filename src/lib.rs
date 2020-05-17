@@ -1,33 +1,30 @@
 #[macro_use(o)]
 extern crate slog;
 
-use slog_term::PlainDecorator;
-use slog::{Logger, Drain, Never, FilterLevel};
-use slog_async::Async;
-use slog_envlogger::{LogBuilder, EnvLogger};
 use crate::drain::DaKVFormatter;
+use once_cell::sync::Lazy;
+use slog::{Discard, Drain, FilterLevel, Logger, Never};
+use slog_async::Async;
+use slog_envlogger::{EnvLogger, LogBuilder};
+use slog_term::PlainDecorator;
 use std::sync::Mutex;
-use slog_scope;
 
 mod drain;
 
-/// ```no_run
+/// ```
 /// use dakv_logger::prelude::*;
 /// use dakv_logger::set_logger_level;
 ///
-/// fn main() {
-///     let _logger = set_logger_level(true, None);
-///     info!("test");
-/// }
+/// let _logger = set_logger_level(true, None);
+/// info!("test");
 /// ```
 // todo rotate
 pub mod prelude {
     pub use slog_scope::{crit, debug, error, info, trace, warn};
 }
 
-
 #[allow(unknown_lints)]
-#[allow(inline_always)]
+#[allow(clippy::inline_always)]
 #[inline(always)]
 pub fn __slog_static_max_level() -> FilterLevel {
     if !cfg!(debug_assertions) {
@@ -57,16 +54,17 @@ pub fn __slog_static_max_level() -> FilterLevel {
         FilterLevel::Debug
     } else if cfg!(feature = "max_level_trace") {
         FilterLevel::Trace
+    } else if !cfg!(debug_assertions) {
+        FilterLevel::Info
     } else {
-        if !cfg!(debug_assertions) {
-            FilterLevel::Info
-        } else {
-            FilterLevel::Debug
-        }
+        FilterLevel::Debug
     }
 }
 
-pub fn set_logger_level(is_async: bool, chan_size: Option<usize>) -> slog_scope::GlobalLoggerGuard {
+pub fn set_logger_level(
+    is_async: bool,
+    chan_size: Option<usize>,
+) -> slog_scope::GlobalLoggerGuard {
     let p = PlainDecorator::new(std::io::stdout());
     let format = DaKVFormatter::new(p).fuse();
     let env_drain = get_env_log(format, __slog_static_max_level());
@@ -81,7 +79,9 @@ pub fn set_logger_level(is_async: bool, chan_size: Option<usize>) -> slog_scope:
 }
 
 fn gen_async_log<D>(drain: D, chan_size: Option<usize>) -> Async
-    where D: Drain<Err=Never, Ok=()> + Send + 'static {
+where
+    D: Drain<Err = Never, Ok = ()> + Send + 'static,
+{
     let mut async_builder = Async::new(drain);
     if let Some(s) = chan_size {
         async_builder = async_builder.chan_size(s)
@@ -90,7 +90,9 @@ fn gen_async_log<D>(drain: D, chan_size: Option<usize>) -> Async
 }
 
 fn get_env_log<D>(drain: D, filter_level: FilterLevel) -> EnvLogger<D>
-    where D: Drain<Err=Never, Ok=()> + Send + 'static {
+where
+    D: Drain<Err = Never, Ok = ()> + Send + 'static,
+{
     let mut env_log_builder = LogBuilder::new(drain);
     env_log_builder = env_log_builder.filter(None, filter_level);
 
@@ -100,20 +102,42 @@ fn get_env_log<D>(drain: D, filter_level: FilterLevel) -> EnvLogger<D>
     env_log_builder.build()
 }
 
+pub fn make_logger_static_for_testing() {
+    Lazy::force(&TESTING_GUARD);
+}
+
+static TESTING_GUARD: Lazy<slog_scope::GlobalLoggerGuard> = Lazy::new(|| {
+    let logger = Logger::root(Discard, o!());
+    slog_scope::set_global_logger(logger)
+});
+
 #[cfg(test)]
 mod tests {
-    use super::prelude::*;
-    use super::set_logger_level;
+    use crate::make_logger_static_for_testing;
 
     #[test]
     fn test_async_log() {
+        use super::prelude::{crit, debug, error, info, trace, warn};
+        use super::set_logger_level;
         let _l = set_logger_level(true, None);
-        warn!("da");
+        crit!("test");
+        info!("test");
+        warn!("test");
+        error!("test");
+        debug!("test");
+        trace!("test");
     }
 
     #[test]
     fn test_log() {
-        let _l = set_logger_level(false, Some(1 << 10));
+        use super::prelude::{crit, debug, error, info, trace, warn};
+        make_logger_static_for_testing();
+
+        crit!("test");
         info!("test");
+        warn!("test");
+        error!("test");
+        debug!("test");
+        trace!("test");
     }
 }
