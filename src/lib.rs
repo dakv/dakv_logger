@@ -1,7 +1,7 @@
 #[macro_use(o)]
 extern crate slog;
 
-use crate::drain::DaKVFormatter;
+use crate::drain::DaKvFormatter;
 use once_cell::sync::Lazy;
 use slog::{Discard, Drain, FilterLevel, Logger, Never};
 use slog_async::Async;
@@ -66,7 +66,7 @@ pub fn set_logger_level(
     chan_size: Option<usize>,
 ) -> slog_scope::GlobalLoggerGuard {
     let p = PlainDecorator::new(std::io::stdout());
-    let format = DaKVFormatter::new(p).fuse();
+    let format = DaKvFormatter::new(p).fuse();
     let env_drain = get_env_log(format, __slog_static_max_level());
     let logger = if is_async {
         let l = gen_async_log(env_drain, chan_size).fuse();

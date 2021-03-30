@@ -2,7 +2,7 @@ use slog::{Drain, Level, OwnedKVList, Record};
 use slog_term::{Decorator, RecordDecorator};
 use std::io;
 
-pub struct DaKVFormatter<D: Decorator> {
+pub struct DaKvFormatter<D: Decorator> {
     dec: D,
 }
 
@@ -17,13 +17,13 @@ fn level_to_str(level: Level) -> &'static str {
     }
 }
 
-impl<D: Decorator> DaKVFormatter<D> {
+impl<D: Decorator> DaKvFormatter<D> {
     pub fn new(dec: D) -> Self {
-        DaKVFormatter { dec }
+        DaKvFormatter { dec }
     }
 }
 
-impl<D: Decorator> Drain for DaKVFormatter<D> {
+impl<D: Decorator> Drain for DaKvFormatter<D> {
     type Ok = ();
     type Err = io::Error;
 
