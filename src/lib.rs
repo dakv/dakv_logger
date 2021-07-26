@@ -2,27 +2,22 @@
 extern crate slog;
 
 use crate::drain::DaKvFormatter;
-use once_cell::sync::Lazy;
-use slog::{Discard, Drain, FilterLevel, Logger, Never};
+use slog::{Drain, FilterLevel, Logger, Never};
 use slog_async::Async;
 use slog_envlogger::{EnvLogger, LogBuilder};
 use slog_term::PlainDecorator;
+use std::io;
 use std::sync::Mutex;
 
 mod drain;
 
 /// ```
-/// use dakv_logger::prelude::*;
+/// use slog::{crit, debug, error, info, trace, warn};
 /// use dakv_logger::set_logger_level;
 ///
-/// let _logger = set_logger_level(true, None);
-/// info!("test");
+/// let logger = set_logger_level(std::io::stdout(), true, None);
+/// info!(logger, "test");
 /// ```
-// todo rotate
-pub mod prelude {
-    pub use slog_scope::{crit, debug, error, info, trace, warn};
-}
-
 #[allow(unknown_lints)]
 #[allow(clippy::inline_always)]
 #[inline(always)]
@@ -61,11 +56,12 @@ pub fn __slog_static_max_level() -> FilterLevel {
     }
 }
 
-pub fn set_logger_level(
+pub fn set_logger_level<W: io::Write + Send + Sync + 'static>(
+    w: W,
     is_async: bool,
     chan_size: Option<usize>,
-) -> slog_scope::GlobalLoggerGuard {
-    let p = PlainDecorator::new(std::io::stdout());
+) -> Logger {
+    let p = PlainDecorator::new(w);
     let format = DaKvFormatter::new(p).fuse();
     let env_drain = get_env_log(format, __slog_static_max_level());
     let logger = if is_async {
@@ -75,7 +71,7 @@ pub fn set_logger_level(
         let l = Mutex::new(env_drain);
         Logger::root(l.fuse(), o!())
     };
-    slog_scope::set_global_logger(logger)
+    logger
 }
 
 fn gen_async_log<D>(drain: D, chan_size: Option<usize>) -> Async
@@ -102,42 +98,32 @@ where
     env_log_builder.build()
 }
 
-pub fn make_logger_static_for_testing() {
-    Lazy::force(&TESTING_GUARD);
-}
-
-static TESTING_GUARD: Lazy<slog_scope::GlobalLoggerGuard> = Lazy::new(|| {
-    let logger = Logger::root(Discard, o!());
-    slog_scope::set_global_logger(logger)
-});
-
 #[cfg(test)]
 mod tests {
-    use crate::make_logger_static_for_testing;
-
     #[test]
     fn test_async_log() {
-        use super::prelude::{crit, debug, error, info, trace, warn};
         use super::set_logger_level;
-        let _l = set_logger_level(true, None);
-        crit!("test");
-        info!("test");
-        warn!("test");
-        error!("test");
-        debug!("test");
-        trace!("test");
+        use slog::{crit, debug, error, info, trace, warn};
+        let log = set_logger_level(std::io::stdout(), true, None);
+        crit!(log, "test");
+        info!(log, "test");
+        warn!(log, "test");
+        error!(log, "test");
+        debug!(log, "test");
+        trace!(log, "test");
     }
 
     #[test]
     fn test_log() {
-        use super::prelude::{crit, debug, error, info, trace, warn};
-        make_logger_static_for_testing();
+        use super::set_logger_level;
+        use slog::{crit, debug, error, info, trace, warn};
+        let log = set_logger_level(std::io::stdout(), false, None);
 
-        crit!("test");
-        info!("test");
-        warn!("test");
-        error!("test");
-        debug!("test");
-        trace!("test");
+        crit!(log, "test");
+        info!(log, "test");
+        warn!(log, "test");
+        error!(log, "test");
+        debug!(log, "test");
+        trace!(log, "test");
     }
 }
